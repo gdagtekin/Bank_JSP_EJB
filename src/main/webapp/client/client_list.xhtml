@@ -1,0 +1,243 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:p="http://primefaces.org/ui">
+    <h:head>
+    </h:head>
+    <h:body>
+        <h:form id="mainForm">
+            <p:growl id="growl" showDetail="true" />
+            <p:panel id="clientsPanel">
+                <p:dataTable id="clientTable" value="#{clientController.clients}" var="client"  
+                             rowKey="#{client.id}"
+                             selectionMode="single"
+                             selection="#{clientController.selectedClient}"
+                             rows="10"
+                             sortBy="#{client.lastName}"
+                             paginator="true"
+                             paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink}"
+                             rowsPerPageTemplate="10" >
+                    <p:ajax event="rowSelect" update=":mainForm" />
+                    <f:facet name="header">
+                        List of clients
+                    </f:facet>
+                    <p:column headerText="First name" sortBy="#{client.firstName}" filterBy="#{client.firstName}">
+                        #{client.firstName}
+                    </p:column>
+                    <p:column headerText="Last name" sortBy="#{client.lastName}" filterBy="#{client.lastName}">
+                        #{client.lastName}
+                    </p:column>
+                    <p:column headerText="Email" sortBy="#{client.email}" filterBy="#{client.email}">
+                        #{client.email}
+                    </p:column>
+                    <p:column headerText="Edit" width="80" style="text-align: center;">
+                        <p:commandButton icon="ui-icon-pencil" title="Edit" action="#{clientController.setSelectedClient(client)}" update=":clientDlg" oncomplete="PF('clientDlg').show()" />
+                    </p:column>
+                    <p:column headerText="Remove" width="80" style="text-align: center;">
+                        <p:commandButton icon="ui-icon-trash" title="Remove" action="#{clientController.setSelectedClient(client)}"  update=":mainForm:clientTable"  oncomplete="PF('removeDlg').show()"/>
+
+                    </p:column>
+                </p:dataTable>
+                <p:commandButton value="Add client" action="#{clientController.onAddClient()}" oncomplete="PF('clientDlg').show()" update=":clientDlg" />
+            </p:panel>
+            <p:panel id="accountsPanel">
+                <p:dataTable id="accountTable" value="#{clientController.selectedClient.accounts}" var="account" 
+                             rendered="#{clientController.selectedClient != null}"
+                             rowKey="#{client.id}"
+                             rows="10"
+                             sortBy="#{client.id}"
+                             paginator="true"
+                             paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink}"
+                             rowsPerPageTemplate="10" >
+                    <p:ajax event="rowSelect" update=":mainForm:operationPanel" />
+                    <f:facet name="header">
+                        Accounts of client #{clientController.selectedClient.firstName} #{clientController.selectedClient.lastName}
+                    </f:facet>
+                    <p:column headerText="Id" sortBy="#{account.id}" filterBy="#{account.id}">
+                        #{account.id}
+                    </p:column>
+                    <p:column headerText="Type" sortBy="#{account.type}" filterBy="#{account.type}">
+                        #{account.type}
+                    </p:column>
+                    <p:column headerText="Balance" sortBy="#{account.balance}" filterBy="#{account.balance}">
+                        <h:outputText value="#{account.balance}" >
+                            <f:convertNumber locale="en-US" type="currency" currencySymbol="$"  />
+                        </h:outputText>
+                    </p:column>
+                    <p:column headerText="Notes" sortBy="#{account.notes}" filterBy="#{account.notes}">
+                        #{account.notes}
+                    </p:column>
+                    <p:column headerText="Operations" width="180" style="text-align: center;">
+                        <p:splitButton id="operation_type" value="Withdraw" action="#{clientController.setSelectedAccount(account)}"  oncomplete="PF('withdrawDlg').show()" rendered="#{clientController.statusAccountAndTransfer(account) == false}" update=":mainForm:accountTable" icon="ui-icon-arrowreturnthick-1-n">
+                            <p:menuitem value="Withdraw" action="#{clientController.setSelectedAccount(account)}" update=":mainForm:accountTable" oncomplete="PF('withdrawDlg').show()"  icon="ui-icon-arrowreturnthick-1-n" />
+                            <p:separator />
+                            <p:menuitem value="Deposit" action="#{clientController.setSelectedAccount(account)}" oncomplete="PF('depositDlg').show()" update=":mainForm:accountTable" icon="ui-icon-arrowreturnthick-1-s"/>
+                            <p:separator />
+                            <p:menuitem value="Transfer" action="#{clientController.onBeforeTransfer(account)}" update=":mainForm" icon="ui-icon-transfer-e-w"/>
+                            <p:separator />
+                            <p:menuitem value="Interest" action="#{clientController.setSelectedAccount(account)}" oncomplete="PF('interestDlg').show()" update=":mainForm:accountTable" icon=" ui-icon-arrow-1-se"/>
+                        </p:splitButton>
+                        <p:commandButton value="Transfer this account" action="#{clientController.setSelectedAccount(account)}" rendered="#{clientController.renderTranferThisAccountButton(account) == true}" oncomplete="PF('transferDlg').show()" update=":mainForm:accountTable" />
+
+                    </p:column>
+                    <p:column headerText="Show Operations" width="100" style="text-align: center;">
+                        <p:commandButton icon="ui-icon-document" title="Show Operations" rendered="#{clientController.statusAccount(account) == false}" action="#{clientController.setSelectedAccount(account)}" update=":mainForm:operationPanel" />
+                    </p:column>
+                    <p:column headerText="Edit" width="80" style="text-align: center;">
+                        <p:commandButton icon="ui-icon-pencil" title="Edit" rendered="#{clientController.statusAccount(account) == false}" action="#{clientController.setSelectedAccount(account)}" update=":accountDlg" oncomplete="PF('accountDlg').show()" />
+                    </p:column>
+                    <p:column headerText="Status" width="80" style="text-align: center;">
+                        <p:commandButton icon="ui-icon-check" title="Activate" rendered="#{clientController.statusAccount(account) == true}" action="#{clientController.onActivateAccount(account)}"  update=":mainForm:accountTable" />
+                        <p:commandButton icon="ui-icon-cancel" title="Disable" rendered="#{clientController.statusAccount(account) == false}" action="#{clientController.onDisableAccount(account)}"  update=":mainForm:accountTable" />
+                    </p:column>
+                </p:dataTable>
+                <p:commandButton value="Add account" disabled="#{clientController.selectedClient == null}" action="#{clientController.onAddAccount()}" oncomplete="PF('accountDlg').show()" update=":accountDlg" />
+
+            </p:panel>
+
+            <p:commandButton value="Cancel transfer" action="#{clientController.onCancelTransfer()}" rendered="#{clientController.sourceAccount !=null}" update=":mainForm" />
+
+            <p:panel id="operationPanel">
+                <p:dataTable id="operationTable" value="#{clientController.selectedAccount.operations}" var="operation" 
+                             rendered="#{clientController.selectedAccount != null}"
+                             rowKey="#{clientController.selectedAccount.id}"
+                             sortBy="#{clientController.selectedAccount.id}"
+                             rows="10"
+                             paginator="true"
+                             paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink}"
+                             rowsPerPageTemplate="10" >
+                    <f:facet name="header">
+                        Operations of account #{clientController.selectedAccount.id}
+                    </f:facet>
+                    <p:column headerText="Source ID" sortBy="#{operation.source}" filterBy="#{operation.source}">
+                        #{operation.source.id}
+                    </p:column>
+                    <p:column headerText="Destination ID" sortBy="#{operation.destination}" filterBy="#{operation.destination}">
+                        #{operation.destination.id}
+                    </p:column>
+                    <p:column headerText="Amount" sortBy="#{operation.amount}" filterBy="#{operation.amount}">
+                        <h:outputText value="#{operation.amount}" >
+                            <f:convertNumber locale="en-US" type="currency" currencySymbol="$"  />
+                        </h:outputText>
+                    </p:column>
+                    <p:column headerText="Operation Type" sortBy="#{operation.type}" filterBy="#{operation.type}">
+                        #{operation.type}
+                    </p:column>
+                    <p:column headerText="Date" sortBy="#{operation.date}" filterBy="#{operation.date}">
+                        #{operation.date}
+                    </p:column>
+
+                </p:dataTable>
+
+            </p:panel>
+        </h:form>
+
+        <p:dialog id="withdrawDlg" widgetVar="withdrawDlg" dynamic="true" modal="true" header="Withdraw" >
+            <h:form id="withdrawDlgForm">
+                <p:panelGrid columns="2">
+                    <p:outputLabel value="Amount" for="amount" />
+                    <p:inputText id="amount" value="#{clientController.amount}" required="true" >
+                        <f:convertNumber locale="en-US" maxFractionDigits="2"/>
+                    </p:inputText>
+                </p:panelGrid>
+                <p:commandButton value="Ok" action="#{clientController.onWithdraw()}"  update=":mainForm:accountTable :mainForm:growl withdrawDlgForm" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('withdrawDlg').hide()"  />
+                <p:commandButton  value="Cancel" process="@this" oncomplete="PF('withdrawDlg').hide()"  >
+                    <p:resetInput target=":withdrawDlgForm"/>
+                </p:commandButton>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog id="depositDlg" widgetVar="depositDlg" dynamic="true" modal="true" header="Deposit" >
+            <h:form id="depositDlgForm">
+                <p:panelGrid columns="2">
+                    <p:outputLabel value="Amount" for="amount" />
+                    <p:inputText id="amount" value="#{clientController.amount}" required="true" >
+                        <f:convertNumber locale="en-US" maxFractionDigits="2"/>
+                    </p:inputText>
+                </p:panelGrid>
+                <p:commandButton value="Ok" action="#{clientController.onDeposit()}"  update=":mainForm:accountTable :mainForm:growl depositDlgForm" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('depositDlg').hide()"  />
+                <p:commandButton  value="Cancel" process="@this" oncomplete="PF('depositDlg').hide()"  >
+                    <p:resetInput target=":depositDlgForm"/>
+                </p:commandButton>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog id="transferDlg" widgetVar="transferDlg" dynamic="true" modal="true" header="Transfer" >
+            <h:form id="transferDlgForm">
+                <p:panelGrid columns="2">
+                    <p:outputLabel value="Amount" for="amount" />
+                    <p:inputText id="amount" value="#{clientController.amount}" required="true" >
+                        <f:convertNumber locale="en-US" maxFractionDigits="2"/>
+                    </p:inputText>
+                </p:panelGrid>
+                <p:commandButton value="Ok" action="#{clientController.onTransfer()}"  update=":mainForm :mainForm:growl transferDlgForm" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('transferDlg').hide()"  />
+                <p:commandButton  value="Cancel" process="@this" oncomplete="PF('transferDlg').hide()"  >
+                    <p:resetInput target=":transferDlgForm"/>
+                </p:commandButton>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog id="interestDlg" widgetVar="interestDlg" dynamic="true" modal="true" header="Interest" >
+            <h:form id="interestDlgForm">
+                <p:panelGrid columns="2">
+                    <p:outputLabel value="Amount" for="amount" />
+                    <p:inputText id="amount" value="#{clientController.amount}" required="true" >
+                        <f:convertNumber locale="en-US" maxFractionDigits="2"/>
+                    </p:inputText>
+                </p:panelGrid>
+                <p:commandButton value="Ok" action="#{clientController.onInterest()}"  update=":mainForm:accountTable :mainForm:growl interestDlgForm" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('interestDlg').hide()"  />
+                <p:commandButton  value="Cancel" process="@this" oncomplete="PF('interestDlg').hide()"  >
+                    <p:resetInput target=":interestDlgForm"/>
+                </p:commandButton>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog id="clientDlg" widgetVar="clientDlg" dynamic="true" modal="true" >
+            <h:form id="clientDlgForm">
+                <p:panelGrid columns="2">
+                    <p:outputLabel value="First name" for="firstName"/>
+                    <p:inputText id="firstName" value="#{clientController.selectedClient.firstName}" required="true" />
+                    <p:outputLabel value="Last name" for="lastName"/>
+                    <p:inputText id="lastName" value="#{clientController.selectedClient.lastName}" required="true" />
+                    <p:outputLabel value="Email" for="email" />
+                    <p:inputText id="email" value="#{clientController.selectedClient.email}"  required="true" /> 
+                </p:panelGrid>
+                <p:commandButton value="Ok" action="#{clientController.onSaveClient()}"  update=":mainForm  :clientDlgForm" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('clientDlg').hide()"  />
+                <p:commandButton  value="Cancel" process="@this" oncomplete="PF('clientDlg').hide()"  >
+                    <p:resetInput target=":clientDlgForm"/>
+                </p:commandButton>
+            </h:form>
+        </p:dialog>
+        <p:dialog id="accountDlg" widgetVar="accountDlg" dynamic="true" modal="true" >
+            <h:form id="accountDlgForm">
+                <p:panelGrid columns="2">
+                    <p:outputLabel value="Account type" for="type"/> 
+                    <p:selectOneMenu id="type" value="#{clientController.selectedAccount.type}" required="true">
+                        <f:selectItems value="#{clientController.accountTypes}" var="type" itemValue="#{type}" itemLabel="#{type}" />
+                    </p:selectOneMenu>
+                    <p:outputLabel value="Balance" for="balance" />
+                    <p:inputText id="balance" value="#{clientController.selectedAccount.balance}"  required="true" >
+                        <f:convertNumber locale="en-US" maxFractionDigits="2"  />
+                    </p:inputText>
+                    <p:outputLabel value="Notes" for="notes" />
+                    <p:inputText id="notes" value="#{clientController.selectedAccount.notes}"  required="true" />
+
+                </p:panelGrid>
+                <p:commandButton value="Ok" action="#{clientController.onSaveAccount()}"  update=":mainForm:accountTable :mainForm:growl :accountDlgForm" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('accountDlg').hide()"  />
+                <p:commandButton  value="Cancel" process="@this" oncomplete="PF('accountDlg').hide()"  >
+                    <p:resetInput target=":accountDlgForm"/>
+                </p:commandButton>
+            </h:form>
+        </p:dialog>
+
+        <p:dialog id="removeDlg" widgetVar="removeDlg" header="Are you sure?" dynamic="true" modal="true" >
+            <h:form id="removeDlgForm">
+                <p:commandButton value="Yes" action="#{clientController.onRemoveClient()}" styleClass="ui-confirmdialog-yes" icon="pi pi-check" update=":mainForm:clientTable" oncomplete="if (args &amp;&amp; !args.validationFailed) PF('removeDlg').hide()"  />
+                <p:commandButton  value="No" process="@this" styleClass="ui-confirmdialog-no" icon="pi pi-times" oncomplete="PF('removeDlg').hide()"  />
+            </h:form>
+        </p:dialog>
+
+    </h:body>
+</html>
